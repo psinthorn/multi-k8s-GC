@@ -1,9 +1,25 @@
 sudo: required
 services:
   - docker
+env:
+  global:
+    - SHA=$(git rev-parse HEAD)
+    - CLOUDSDK_CORE_DISABLE_PROMTS=1
 before_install:
   - openssl aes-256-cbc -K $encrypted_0c35eebf403c_key -iv $encrypted_0c35eebf403c_iv -in multi-k8s.json.enc -out multi-k8s.json -d
   - curl https://sdk.cloud.google.com | bash > /dev/null;
   - source $HOME/google-cloud-sdk/path.bash.inc
   - gcloud components update kubectl
-  - gcloud auth activate-service-account --key-file service-account.json
+  - gcloud auth activate-service-account --key-file multi-k8s.json
+  - gcloud config set project multi-k8s-219316
+  - gcloud config set compute/zone asia-southeast1-a	
+  - gcloud container clusters get-credentials multi-k8s-cluster	
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdi
+  - docker build -t ecosyn1980/client-test -f ./client/Dockerfile.dev ./client
+script:
+  - docker run ecosyn1980/client-test npm test -- --coverage
+deploy:
+  provider: script
+  script: bash ./deploy-gc.sh
+  on:
+  branch: master
